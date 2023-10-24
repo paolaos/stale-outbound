@@ -10,6 +10,7 @@ pillow = "*"
 webdriver-manager = "*"
 selenium = "*"
 lxml = "*"
+openai = "*"
 
 [dev-packages]
 

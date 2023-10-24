@@ -1,3 +1,5 @@
+import requests
+import json
 import time
 import random
 from selenium.common.exceptions import TimeoutException
@@ -12,7 +14,7 @@ from PIL import Image
 from io import BytesIO
 from selenium.webdriver.support import expected_conditions as EC
 from lxml import html
-from lxml.html import fromstring
+import openai
 
 
 def load_driver():
@@ -51,32 +53,62 @@ def extract_html(profile_url):
         
     return page_source
 
+def extract_text_from_html(input_file_path):
+    # Parse the HTML file into an lxml HTML object
+    with open(input_file_path, 'rb') as file:
+        html_content = file.read()
+        tree = html.fromstring(html_content)
 
-def clean_html(raw_html):
-    html_element = fromstring(raw_html)
+    # Extract the visible text content from the HTML
+    visible_text = tree.text_content()
 
-    list_elements_to_remove = [
-        "/html/body/div[1]",
-        "/html/body/div[4]/div/div/section",
-        "/html/body/header"
-    ]
+    visible_text = visible_text.replace("LinkedIn", "FunnyCorp")
 
-    for el in list_elements_to_remove:
-        try:
-            elements_to_remove = html_element.xpath("//div[@class='remove-me']")
-            for element in elements_to_remove:
-                element.getparent().remove(element)
-        except Exception as e:
-            print(f"Error removing element {el}: {str(e)}")
+    # Split the visible text into lines and filter out empty or whitespace-only lines
+    lines = [line.strip() for line in visible_text.splitlines() if line.strip()]
+    lines = lines[6:293]
+    # Join the filtered lines back into visible text
+    cleaned_visible_text = '\n'.join(lines)
+    # Write the extracted text to the output text file
+    # with open("clean.txt", 'w', encoding='utf-8') as output_file:
+    #     output_file.write(cleaned_visible_text)   
+    return cleaned_visible_text
 
-    cleaned_html = html.tostring(html_element, encoding="utf-8").decode("utf-8")
-    # Save the HTML content to a file
-    with open("clean.html", "w", encoding="utf-8") as file:
-        file.write(cleaned_html)
-    return cleaned_html
+def extract_information(raw_text):
+    api_key = "its_a_secret_duh"
+    # Define the API key and endpoint
+    ENDPOINT = 'https://api.openai.com/v1/chat/completions'
+    
+    # Construct headers
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': f'Bearer {api_key}'
+    }
 
-def extract_information():
-    return 0
+    # Define the parameters of your prompt
+    data = {
+        "temperature": 0.5,
+        "model": "gpt-4",
+        "messages": [{"role": "user", "content": f"I am an SDR, and I am selling an AI-powered lead generation and client engagement software. I am looking to extract useful information from a piece of raw text obtained from a webpage. Please analyze the text and provide details that could be crucial for sales outreach of the product I want to sell. Ignore any line that is not relevant or that is unrelated to the request. Please return only 3 important pieces of information, and tell me what relevancy it could have with the product I want to sell: {raw_text}"}],
+        "top_p": 1,
+        "n": 1,
+        "stop": None,
+        "presence_penalty": 0,
+        "frequency_penalty": 0
+    }
+
+    # Make the POST request
+    response = requests.post(ENDPOINT, headers=headers, data=json.dumps(data))
+
+    # Handle the response
+    if response.status_code == 200:
+        # The request was successful
+        result = response.json()
+        resp = result["choices"][0]["message"]["content"]
+        print(resp)  # Print the formatted JSON response
+    else:
+        # The request failed
+        print(f"Error: {response.status_code}, {response.text}")
 
 def extract_linkedin_profile_info(profile_url):
     """Extracts the name, title, and education of a given LinkedIn profile.
@@ -88,53 +120,23 @@ def extract_linkedin_profile_info(profile_url):
         A dictionary containing the name, title, and education of the LinkedIn profile.
     """
 
-    raw_html = extract_html(profile_url)
-    # raw_html = open("page.html").read()
-    cleaned_html = clean_html(raw_html)
-    print(cleaned_html)
-    # analyzed_html = extract_information(cleaned_html)
+    extract_html(profile_url)
+    extracted_text = extract_text_from_html("page.html")
+    extract_information(extracted_text)
 
-    # response = requests.get(profile_url)
-    # soup = BeautifulSoup(response.content, 'html.parser')
-    # print(response.text)
-
-    # Extract the name
-    # name = soup.find('h1', class_='pv-profile-name').text
-
-    # # Extract the title
-    # title = soup.find('h2', class_='pv-top-card-section-title').text
-
-    # # Extract the education
-    # education = []
-    # for education_item in soup.find_all('li', class_='pv-education-entity'):
-    #     education.append(education_item.find('h3').text)
-
-    # return {
-    #     'name': name,
-    #     'title': title,
-    #     'education': education,
-    # }
-
-    return 0
+    return 1
 
 
 if __name__ == '__main__':
+    t0 = time.time()
     # Get the LinkedIn profile URL
-    profile_url = 'https://www.linkedin.com/in/paola-os/'
+    profile_url = 'https://www.linkedin.com/in/othmane-baddou/'
 
     # Extract the profile information
     profile_info = extract_linkedin_profile_info(profile_url)
 
     # Print the profile information
     print(profile_info)
-
-
-"""
-Remove
-#artdeco-global-alert-container > div > section
-/html/body/div[4]/div/div/section
-/html/body/header
-
-CLICK ON /html/body/main/section[1]/div/section/section[1]/div/div[2]/div[1]/h1
-
-"""
+    t1 = time.time()
+    total = t1-t0
+    print(f"Total workflow time: {total}")
