@@ -28,6 +28,8 @@ def load_driver():
 def extract_html(profile_url):
     driver = load_driver()
     redirected = True
+    is_linkedin = profile_url.startswith("https://www.linkedin.com")
+
     while redirected:
         driver.get(profile_url)
         current_url = driver.current_url
@@ -49,9 +51,9 @@ def extract_html(profile_url):
     with open("page.html", "w", encoding="utf-8") as file:
         file.write(page_source)
         
-    return page_source
+    return is_linkedin
 
-def extract_text_from_html(input_file_path):
+def extract_text_from_html(input_file_path, is_linkedin):
     # Parse the HTML file into an lxml HTML object
     with open(input_file_path, 'rb') as file:
         html_content = file.read()
@@ -64,7 +66,8 @@ def extract_text_from_html(input_file_path):
 
     # Split the visible text into lines and filter out empty or whitespace-only lines
     lines = [line.strip() for line in visible_text.splitlines() if line.strip()]
-    lines = lines[6:293]
+    lines = lines[6:293] if is_linkedin else lines[:-7]
+
     # Join the filtered lines back into visible text
     cleaned_visible_text = '\n'.join(lines) 
     return cleaned_visible_text
@@ -115,8 +118,8 @@ def extract_linkedin_profile_info(profile_url, product_info):
         A dictionary containing the name, title, and education of the LinkedIn profile.
     """
 
-    extract_html(profile_url)
-    extracted_text = extract_text_from_html("page.html")
+    is_linkedin = extract_html(profile_url)
+    extracted_text = extract_text_from_html("page.html", is_linkedin)
     resp = extract_information(extracted_text, product_info)
     return resp
 
@@ -134,7 +137,7 @@ def perform_analysis(profile_url, product_info):
 
 def entrypoint():
     st.title('Information extraction for personalization')
-    profile_url = st.text_input("LinkedIn Profile URL", value="", max_chars=None, key=None, type="default", placeholder="https://www.linkedin.com/in/othmane-baddou/")
+    profile_url = st.text_input("URL", value="", max_chars=None, key=None, type="default", placeholder="https://www.linkedin.com/in/othmane-baddou/")
     product_info = st.text_input("Product to sell", value="", max_chars=None, key=None, type="default", placeholder="An AI-powered lead generation and client engagement software")
     if st.button('Submit') and (profile_url != "" and product_info != ""):
         try:
