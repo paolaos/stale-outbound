@@ -14,8 +14,7 @@ from PIL import Image
 from io import BytesIO
 from selenium.webdriver.support import expected_conditions as EC
 from lxml import html
-import openai
-
+import streamlit as st
 
 def load_driver():
     options = ChromeOptions()
@@ -25,7 +24,6 @@ def load_driver():
     options.add_argument('--disable-dev-shm-usage')      
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
     return driver
-
 
 def extract_html(profile_url):
     driver = load_driver()
@@ -68,14 +66,11 @@ def extract_text_from_html(input_file_path):
     lines = [line.strip() for line in visible_text.splitlines() if line.strip()]
     lines = lines[6:293]
     # Join the filtered lines back into visible text
-    cleaned_visible_text = '\n'.join(lines)
-    # Write the extracted text to the output text file
-    # with open("clean.txt", 'w', encoding='utf-8') as output_file:
-    #     output_file.write(cleaned_visible_text)   
+    cleaned_visible_text = '\n'.join(lines) 
     return cleaned_visible_text
 
-def extract_information(raw_text):
-    api_key = "its_a_secret_duh"
+def extract_information(raw_text, product="an AI-powered lead generation and client engagement software"):
+    api_key = "Nice try, loser"  # Replace with your actual API key
     # Define the API key and endpoint
     ENDPOINT = 'https://api.openai.com/v1/chat/completions'
     
@@ -89,7 +84,7 @@ def extract_information(raw_text):
     data = {
         "temperature": 0.5,
         "model": "gpt-4",
-        "messages": [{"role": "user", "content": f"I am an SDR, and I am selling an AI-powered lead generation and client engagement software. I am looking to extract useful information from a piece of raw text obtained from a webpage. Please analyze the text and provide details that could be crucial for sales outreach of the product I want to sell. Ignore any line that is not relevant or that is unrelated to the request. Please return only 3 important pieces of information, and tell me what relevancy it could have with the product I want to sell: {raw_text}"}],
+        "messages": [{"role": "user", "content": f"I am an SDR, and I am selling {product}. I am looking to extract useful information from a piece of raw text obtained from a webpage. Please analyze the text and provide details that could be crucial for sales outreach of the product I want to sell. Ignore any line that is not relevant or that is unrelated to the request, and if you do not find anything feel free to let me know. Please return only 3 important pieces of information, and tell me what relevancy it could have with the product I want to sell: {raw_text}"}],
         "top_p": 1,
         "n": 1,
         "stop": None,
@@ -105,12 +100,12 @@ def extract_information(raw_text):
         # The request was successful
         result = response.json()
         resp = result["choices"][0]["message"]["content"]
-        print(resp)  # Print the formatted JSON response
+        return resp
     else:
         # The request failed
         print(f"Error: {response.status_code}, {response.text}")
 
-def extract_linkedin_profile_info(profile_url):
+def extract_linkedin_profile_info(profile_url, product_info):
     """Extracts the name, title, and education of a given LinkedIn profile.
 
     Args:
@@ -122,21 +117,28 @@ def extract_linkedin_profile_info(profile_url):
 
     extract_html(profile_url)
     extracted_text = extract_text_from_html("page.html")
-    extract_information(extracted_text)
+    resp = extract_information(extracted_text, product_info)
+    return resp
 
-    return 1
-
-
-if __name__ == '__main__':
+def perform_analysis(profile_url, product_info):
+    
     t0 = time.time()
     # Get the LinkedIn profile URL
-    profile_url = 'https://www.linkedin.com/in/othmane-baddou/'
-
     # Extract the profile information
-    profile_info = extract_linkedin_profile_info(profile_url)
-
+    profile_info = extract_linkedin_profile_info(profile_url, product_info)
     # Print the profile information
-    print(profile_info)
     t1 = time.time()
     total = t1-t0
     print(f"Total workflow time: {total}")
+    return profile_info
+
+def entrypoint():
+    st.title('Information extraction for personalization')
+    profile_url = st.text_input("LinkedIn Profile URL", value="", max_chars=None, key=None, type="default", placeholder="https://www.linkedin.com/in/othmane-baddou/")
+    product_info = st.text_input("Product to sell", value="", max_chars=None, key=None, type="default", placeholder="An AI-powered lead generation and client engagement software")
+    if st.button('Submit') and (profile_url != "" and product_info != ""):
+        profile_info = perform_analysis(profile_url, product_info)
+        st.write(profile_info)
+
+
+entrypoint()

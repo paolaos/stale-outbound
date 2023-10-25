@@ -11,6 +11,7 @@ webdriver-manager = "*"
 selenium = "*"
 lxml = "*"
 openai = "*"
+streamlit = "*"
 
 [dev-packages]
 
