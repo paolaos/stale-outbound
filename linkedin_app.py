@@ -53,7 +53,7 @@ def extract_html(profile_url):
         
     return is_linkedin
 
-def extract_text_from_html(input_file_path, is_linkedin):
+def extract_text_from_html(input_file_path):
     # Parse the HTML file into an lxml HTML object
     with open(input_file_path, 'rb') as file:
         html_content = file.read()
@@ -66,10 +66,9 @@ def extract_text_from_html(input_file_path, is_linkedin):
 
     # Split the visible text into lines and filter out empty or whitespace-only lines
     lines = [line.strip() for line in visible_text.splitlines() if line.strip()]
-    lines = lines[6:293] if is_linkedin else lines[:-7]
-
     # Join the filtered lines back into visible text
-    cleaned_visible_text = '\n'.join(lines) 
+    cleaned_visible_text = '\n'.join(lines)
+    cleaned_visible_text = crop_to_tokens(cleaned_visible_text, 5500)
     return cleaned_visible_text
 
 def extract_information(raw_text, product="an AI-powered lead generation and client engagement software"):
@@ -108,6 +107,26 @@ def extract_information(raw_text, product="an AI-powered lead generation and cli
         # The request failed
         print(f"Error: {response.status_code}, {response.text}")
 
+def crop_to_tokens(s, max_tokens):
+    """
+    Crops a string so that it doesn't exceed a specified number of tokens.
+    Note: This is an approximation. To be accurate, OpenAI's tokenizer would need to be used.
+    """
+    tokens = 0
+    words = s.split()
+    cropped_words = []
+    
+    for word in words:
+        word_tokens = len(word) / 4 if len(word) > 4 else 1  # Approximating tokens for words longer than 4 characters
+        if tokens + word_tokens <= max_tokens:
+            cropped_words.append(word)
+            tokens += word_tokens
+        else:
+            break
+    
+    return ' '.join(cropped_words)
+
+
 def extract_linkedin_profile_info(profile_url, product_info):
     """Extracts the name, title, and education of a given LinkedIn profile.
 
@@ -118,8 +137,8 @@ def extract_linkedin_profile_info(profile_url, product_info):
         A dictionary containing the name, title, and education of the LinkedIn profile.
     """
 
-    is_linkedin = extract_html(profile_url)
-    extracted_text = extract_text_from_html("page.html", is_linkedin)
+    extract_html(profile_url)
+    extracted_text = extract_text_from_html("page.html")
     resp = extract_information(extracted_text, product_info)
     return resp
 
@@ -140,11 +159,16 @@ def entrypoint():
     profile_url = st.text_input("URL", value="", max_chars=None, key=None, type="default", placeholder="https://www.linkedin.com/in/othmane-baddou/")
     product_info = st.text_input("Product to sell", value="", max_chars=None, key=None, type="default", placeholder="An AI-powered lead generation and client engagement software")
     if st.button('Submit') and (profile_url != "" and product_info != ""):
-        try:
-            profile_info = perform_analysis(profile_url, product_info)
-            st.write(profile_info)
-        except Exception as e:
-            st.write(f'Error in generating response: {e}')
+        if not (profile_url.startswith("http://") or profile_url.startswith("https://")):
+            st.write(f'Please start the URL with http:// or https://')
+        elif len(product_info.split()) > 60:
+            st.write(f'Keep the description short, preferably in less than 60 words.')
+        else:
+            try:
+                profile_info = perform_analysis(profile_url, product_info)
+                st.write(profile_info)
+            except Exception as e:
+                st.write(f'Error in generating response: {e}')
 
 
 entrypoint()
