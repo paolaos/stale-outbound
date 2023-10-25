@@ -137,8 +137,11 @@ def entrypoint():
     profile_url = st.text_input("LinkedIn Profile URL", value="", max_chars=None, key=None, type="default", placeholder="https://www.linkedin.com/in/othmane-baddou/")
     product_info = st.text_input("Product to sell", value="", max_chars=None, key=None, type="default", placeholder="An AI-powered lead generation and client engagement software")
     if st.button('Submit') and (profile_url != "" and product_info != ""):
-        profile_info = perform_analysis(profile_url, product_info)
-        st.write(profile_info)
+        try:
+            profile_info = perform_analysis(profile_url, product_info)
+            st.write(profile_info)
+        except Exception as e:
+            st.write(f'Error in generating response: {e}')
 
 
 entrypoint()
